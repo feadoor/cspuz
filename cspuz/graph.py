@@ -297,36 +297,23 @@ def _division_connected(
     n = graph.num_vertices
     m = len(graph)
 
-    if use_graph_primitive:
-        for i in range(num_regions):
-            region = solver.bool_array(n)
-            solver.ensure(region == (division == i))
-            _active_vertices_connected(solver, region.data, graph, use_graph_primitive=True)
-
-            if not allow_empty_group:
-                solver.ensure(count_true(region) >= 1)
-
-        if roots is not None:
-            for i, r in enumerate(roots):
-                if r is not None:
-                    if not isinstance(r, int):
-                        raise TypeError("each element in 'roots' must be 'int'")
-                    solver.ensure(division[r] == i)
-        return
-
     rank = solver.int_array(n, 0, n - 1)
     is_root = solver.bool_array(n)
     spanning_forest = solver.bool_array(m)
+    is_leaf = solver.bool_array(n)
 
     for i in range(n):
         less_ranks = []
+        active_edges = []
         for j, e in graph.incident_edges[i]:
+            active_edges.append(spanning_forest[e])
             less_ranks.append(spanning_forest[e] & (rank[i] > rank[j]))
             if i < j:
                 solver.ensure(
                     spanning_forest[e].then((division[i] == division[j]) & (rank[i] != rank[j]))
                 )
         solver.ensure(count_true(less_ranks) == is_root[i].cond(0, 1))
+        solver.ensure(is_leaf[i] == (count_true(active_edges) == 1))
     for i in range(num_regions):
         if allow_empty_group:
             solver.ensure(count_true([r & (n == i) for r, n in zip(is_root, division)]) <= 1)
@@ -337,6 +324,8 @@ def _division_connected(
             if r is not None:
                 solver.ensure(division[r] == i)
                 solver.ensure(is_root[r])
+
+    return spanning_forest, is_leaf
 
 
 @overload
@@ -392,7 +381,7 @@ def division_connected(
                         )
                     y, x = a
                     roots_conv.append(y * width + x)
-        _division_connected(
+        return _division_connected(
             solver,
             division.flatten(),
             num_regions,
@@ -403,7 +392,7 @@ def division_connected(
     else:
         if isinstance(division, IntArray2D):
             raise TypeError("'division' should be sequence-like if graph is specified")
-        _division_connected(
+        return _division_connected(
             solver,
             division,
             num_regions,

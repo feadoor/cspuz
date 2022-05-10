@@ -31,18 +31,28 @@ def solve_star_battle(n, blocks, k):
     return is_sat, has_star
 
 
-def _initial_blocks(n):
-    seeds = set()
+def _initial_blocks(n, starting_blocks=None):
+    blocks = [b[::] for b in starting_blocks] if starting_blocks != None else [[-1 for _ in range(n)] for _ in range(n)]
+    n_starting_blocks = max(max(b) for b in blocks) + 1
+
+    seeds = []
+    for i in range(n_starting_blocks):
+        for y in range(n):
+            for x in range(n):
+                if blocks[y][x] == i and len(seeds) == i:
+                    seeds.append((y, x))
+
     while len(seeds) < n:
-        seeds.add((random.randint(0, n - 1), random.randint(0, n - 1)))
-    blocks = [[-1 for _ in range(n)] for _ in range(n)]
-    seeds = list(seeds)
+        (y, x) = (random.randint(0, n - 1), random.randint(0, n - 1))
+        if blocks[y][x] == -1 and (y, x) not in seeds:
+            seeds.append((y, x))
+
     for i, (y, x) in enumerate(seeds):
         blocks[y][x] = i
 
     dirs = [(-1, 0), (0, -1), (1, 0), (0, 1)]
 
-    for i in range(n * (n - 1)):
+    for i in range(sum(b.count(-1) for b in blocks)):
         cand = []
         sz = [0] * n
         for y in range(n):
@@ -53,7 +63,7 @@ def _initial_blocks(n):
                 for dy, dx in dirs:
                     y2 = y + dy
                     x2 = x + dx
-                    if 0 <= y2 < n and 0 <= x2 < n and blocks[y2][x2] != -1:
+                    if 0 <= y2 < n and 0 <= x2 < n and blocks[y2][x2] >= n_starting_blocks:
                         cand.append((y, x, blocks[y2][x2]))
         w = [sz[g] ** -4 for _, _, g in cand]
         p = np.array(w) / sum(w)
@@ -99,9 +109,12 @@ def _compute_score(has_star):
     return ret
 
 
-def generate_star_battle(n, k, verbose=False):
+def generate_star_battle(n, k, starting_blocks=None, verbose=False):
+
+    n_starting_blocks = 0 if starting_blocks is None else max(max(b) for b in starting_blocks) + 1
+
     while True:
-        blocks = _initial_blocks(n)
+        blocks = _initial_blocks(n, starting_blocks)
         is_sat, has_star = solve_star_battle(n, blocks, k)
         if is_sat:
             score = _compute_score(has_star)
@@ -113,7 +126,7 @@ def generate_star_battle(n, k, verbose=False):
         cand = []
         for y in range(n):
             for x in range(n):
-                if not _is_connected(n, blocks, blocks[y][x], (y, x)):
+                if (blocks[y][x] < n_starting_blocks) or (not _is_connected(n, blocks, blocks[y][x], (y, x))):
                     continue
                 g2 = set()
                 if y > 0:
@@ -125,7 +138,7 @@ def generate_star_battle(n, k, verbose=False):
                 if x < n - 1:
                     g2.add(blocks[y][x + 1])
                 for g in g2:
-                    if g != blocks[y][x]:
+                    if g != blocks[y][x] and g >= n_starting_blocks:
                         cand.append((y, x, g))
         random.shuffle(cand)
 
@@ -189,7 +202,6 @@ def _main():
             problem = generate_star_battle(n, k, verbose=True)
             if problem is not None:
                 print(problem_to_pzv_url(n, k, problem), flush=True)
-
 
 if __name__ == "__main__":
     _main()
