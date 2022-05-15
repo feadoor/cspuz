@@ -401,6 +401,66 @@ def division_connected(
             allow_empty_group=allow_empty_group,
         )
 
+def _connected_groups(
+    solver: Solver,
+    is_active: Sequence[BoolExprLike],
+    graph: Graph,
+):
+    n = graph.num_vertices
+    m = len(graph)
+
+    group_id = solver.int_array(n, 0, n)
+    rank = solver.int_array(n, 0, n)
+    is_active_edge = solver.bool_array(m)
+
+    for e, (i, j) in enumerate(graph):
+        solver.ensure(is_active_edge[e].then(is_active[i] & is_active[j]))
+    
+    for i in range(n):
+        solver.ensure((~is_active[i]).then(rank[i] == 0))
+        solver.ensure((rank[i] == 0).then(group_id[i] == i))
+        for j, e in graph.incident_edges[i]:
+            solver.ensure(is_active_edge[e].then((rank[j] == rank[i] + 1) | (rank[j] + 1 == rank[i])))
+        solver.ensure(
+            count_true(
+                ((is_active_edge[e] & (rank[j] + 1 == rank[i])) for j, e in graph.incident_edges[i])
+            )
+            == (rank[i] == 0).cond(0, 1)
+        )
+    for (i, j) in graph:
+        solver.ensure((is_active[i] & is_active[j]).then(group_id[i] == group_id[j]))
+
+    downstream_size = solver.int_array(n, 0, n)
+    total_size = solver.int_array(n, 0, n)
+    solver.ensure(downstream_size <= total_size)
+    solver.ensure((rank == 0).then(downstream_size == total_size))
+    for i in range(n):
+        solver.ensure(
+            is_active[i].then(
+                sum(
+                    (
+                        (is_active_edge[e] & (rank[j] == rank[i] + 1)).cond(downstream_size[j], 0)
+                        for j, e in graph.incident_edges[i]
+                    )
+                )
+                + 1
+                == downstream_size[i]
+            )
+        )
+        solver.ensure((~is_active[i]).then(downstream_size[i] == 0))
+    for (i, j) in graph:
+        solver.ensure((is_active[i] & is_active[j]).then(total_size[i] == total_size[j]))
+
+    return group_id, total_size
+
+def connected_groups(
+    solver: Solver,
+    is_active: Sequence[BoolExprLike],
+):
+    height, width = _get_array_shape_2d(is_active)
+    group_id, size = _connected_groups(solver, is_active.flatten().data, _grid_graph(height, width))
+    return group_id.reshape((height, width)), size.reshape((height, width))
+
 
 def _division_connected_variable_groups(
     solver: Solver,
