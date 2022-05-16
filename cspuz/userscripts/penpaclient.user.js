@@ -20,7 +20,8 @@
     let solverSocket = null;
 
     const puzzleOptions = [
-        {name: 'Kurotto', val: 'kurotto'}
+        {name: 'Kurotto', val: 'kurotto'},
+        {name: 'Kuromasu', val: 'kuromasu'},
     ];
 
     const showSolveButton = function() {
@@ -45,10 +46,16 @@
         pu.redraw();
     };
 
-    const extractKurotto = function() {
-        const height = pu.ny - pu.space[0] - pu.space[1];
-        const width = pu.nx - pu.space[2] - pu.space[3];
-        const numbers = {}
+    const getWidth = function() {
+        return pu.nx - pu.space[2] - pu.space[3];
+    };
+
+    const getHeight = function() {
+        return pu.ny - pu.space[0] - pu.space[1];
+    };
+
+    const extractNumbers = function() {
+        const [width, height, numbers] = [getWidth(), getHeight(), {}];
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < height; x++) {
                 const index = pu.centerlist[width * y + x];
@@ -57,13 +64,12 @@
                 }
             }
         }
-        return {height, width, numbers};
+        return numbers;
     };
 
-    const displayKurottoSolution = function(response) {
-        const height = response.height;
-        const width = response.width;
-        for (const [cell, value] of Object.entries(response.shading)) {
+    const displayShading = function(shading) {
+        const width = getWidth();
+        for (const [cell, value] of Object.entries(shading)) {
             const [y, x] = JSON.parse(cell.replace(/\(/g, "[").replace(/\)/g, "]"));
             const index = pu.centerlist[width * y + x];
             if (value !== null) {
@@ -71,6 +77,22 @@
             }
         }
         pu.redraw();
+    };
+
+    const extractKurotto = function() {
+        return {height: getHeight(), width: getWidth(), numbers: extractNumbers()};
+    };
+
+    const displayKurottoSolution = function(response) {
+        displayShading(response.shading);
+    };
+
+    const extractKuromasu = function() {
+        return {height: getHeight(), width: getWidth(), numbers: extractNumbers()};
+    };
+
+    const displayKuromasuSolution = function(response) {
+        displayShading(response.shading);
     };
 
     const createSocket = function() {
@@ -86,6 +108,9 @@
             switch (response.type) {
                 case 'kurotto':
                     displayKurottoSolution(response);
+                    break;
+                case 'kuromasu':
+                    displayKuromasuSolution(response);
                     break;
             }
             solveButton.text('Solve');
@@ -118,6 +143,9 @@
             switch (type) {
                 case 'kurotto':
                     solverSocket.send(JSON.stringify({...extractKurotto(), type}));
+                    break;
+                case 'kuromasu':
+                    solverSocket.send(JSON.stringify({...extractKuromasu(), type}));
                     break;
                 default:
                     solveButton.text('Solve');
