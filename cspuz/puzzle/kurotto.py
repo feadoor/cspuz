@@ -68,7 +68,7 @@ def generate_kurotto(
             disallow_adjacent=disallow_adjacent,
             symmetry=symmetry,
         ),
-        clue_penalty=lambda problem: count_non_default_values(problem, default=-2, weight=4),
+        clue_penalty=lambda problem: count_non_default_values(problem, default=-2, weight=5),
         verbose=verbose,
     )
     return generated
