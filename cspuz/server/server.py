@@ -6,21 +6,19 @@ import websockets
 from cspuz.puzzle import kurotto
 
 def serialize_puzzle_info(puzzle_info):
-    json_data = {
-        'shading': {str(k): v for k, v in puzzle_info.get('shading', {}).items()},
-        'numbers': {str(k): v for k, v in puzzle_info.get('numbers', {}).items()},
-    }
+    json_data = {'type': puzzle_info['type'], 'height': puzzle_info['height'], 'width': puzzle_info['width']}
+    for name in puzzle_info:
+        if name not in ['type', 'height', 'width']:
+            json_data[name] = {str(k): v for k, v in puzzle_info.get(name, {}).items()}
     return json.dumps(json_data)
 
 def deserialize_puzzle_info(message):
     json_data = json.loads(message)
-    return {
-        'type': json_data['type'],
-        'height': json_data['height'],
-        'width': json_data['width'],
-        'shading': {eval(k): v for k, v in json_data.get('shading', {}).items()},
-        'numbers': {eval(k): v for k, v in json_data.get('numbers', {}).items()}
-    }
+    puzzle_info = {'type': json_data['type'], 'height': json_data['height'], 'width': json_data['width']}
+    for name in json_data:
+        if name not in ['type', 'height', 'width']:
+            puzzle_info[name] = {eval(k): v for k, v in json_data.get(name, {}).items()}
+    return puzzle_info
 
 def parse_kurotto(puzzle_info):
     height, width = puzzle_info['height'], puzzle_info['width']
@@ -56,17 +54,19 @@ async def echo(websocket):
                 height, width, problem_data = parse_kurotto(puzzle_info)
                 is_sat, is_black = kurotto.solve_kurotto(height, width, problem_data)
                 if is_sat:
-                    await websocket.send(serialize_puzzle_info({'shading': shading_from_sat(height, width, is_black)}))
+                    await websocket.send(serialize_puzzle_info({'type': 'kurotto', 'height': height, 'width': width, 'shading': shading_from_sat(height, width, is_black)}))
                 else:
-                    await websocket.send(serialize_puzzle_info({'shading': impossible_shading(height, width)}))
+                    await websocket.send(serialize_puzzle_info({'type': 'kurotto', 'height': height, 'width': width, 'shading': impossible_shading(height, width)}))
 
             else:
                 print(f"Unknown puzzle type {puzzle_info['type']}", file=sys.stderr)
+                await websocket.send(json.dumps({'type': 'error'}))
 
         except Exception as e:
             print("Failed to handle message", file=sys.stderr)
             print(message, file=sys.stderr)
             print(e, file=sys.stderr)
+            await websocket.send(json.dumps({'type': 'error'}))            
 
 
 async def main():
