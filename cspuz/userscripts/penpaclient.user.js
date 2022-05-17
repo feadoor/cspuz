@@ -73,7 +73,7 @@
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const index = pu.centerlist[width * y + x];
-                if (pu.pu_q.number[index] !== undefined) {
+                if (pu.pu_q.number[index] !== undefined && pu.pu_q.number[index][0].includes('_') && !pu.pu_q.number[index][0].startsWith('_')) {
                     const [number, dirVal] = pu.pu_q.number[index][0].split('_');
                     const dir = ['U', 'L', 'R', 'D'][parseInt(dirVal, 10)];
                     arrowNumbers[`(${y}, ${x})`] = `(${number}, '${dir}')`;
