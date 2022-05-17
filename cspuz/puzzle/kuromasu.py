@@ -7,11 +7,6 @@ from cspuz import Solver, graph
 from cspuz.puzzle import util
 from cspuz.generator import generate_problem, count_non_default_values, ArrayBuilder2D
 
-def false_variable(solver):
-    v = solver.bool_var()
-    solver.ensure(~v)
-    return v
-
 def solve_kuromasu(height, width, problem):
     solver = Solver()
 

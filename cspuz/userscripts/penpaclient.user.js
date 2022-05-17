@@ -22,6 +22,7 @@
     const puzzleOptions = [
         {name: 'Kurotto', val: 'kurotto'},
         {name: 'Kuromasu', val: 'kuromasu'},
+        {name: 'Yajisan-Kazusan', val: 'yajikazu'},
     ];
 
     const showSolveButton = function() {
@@ -57,7 +58,7 @@
     const extractNumbers = function() {
         const [width, height, numbers] = [getWidth(), getHeight(), {}];
         for (let y = 0; y < height; y++) {
-            for (let x = 0; x < height; x++) {
+            for (let x = 0; x < width; x++) {
                 const index = pu.centerlist[width * y + x];
                 if (pu.pu_q.number[index] !== undefined) {
                     numbers[`(${y}, ${x})`] = pu.pu_q.number[index][0];
@@ -65,6 +66,21 @@
             }
         }
         return numbers;
+    };
+
+    const extractArrowNumbers = function() {
+        const [width, height, arrowNumbers] = [getWidth(), getHeight(), {}];
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const index = pu.centerlist[width * y + x];
+                if (pu.pu_q.number[index] !== undefined) {
+                    const [number, dirVal] = pu.pu_q.number[index][0].split('_');
+                    const dir = ['U', 'L', 'R', 'D'][parseInt(dirVal, 10)];
+                    arrowNumbers[`(${y}, ${x})`] = `(${number}, '${dir}')`;
+                }
+            }
+        }
+        return arrowNumbers;
     };
 
     const displayShading = function(shading) {
@@ -95,6 +111,14 @@
         displayShading(response.shading);
     };
 
+    const extractYajikazu = function() {
+        return {height: getHeight(), width: getWidth(), arrowNumbers: extractArrowNumbers()};
+    };
+
+    const displayYajikazuSolution = function(response) {
+        displayShading(response.shading);
+    };
+
     const createSocket = function() {
         const socket = new WebSocket('ws://localhost:8765');
 
@@ -111,6 +135,9 @@
                     break;
                 case 'kuromasu':
                     displayKuromasuSolution(response);
+                    break;
+                case 'yajikazu':
+                    displayYajikazuSolution(response);
                     break;
             }
             solveButton.text('Solve');
@@ -146,6 +173,9 @@
                     break;
                 case 'kuromasu':
                     solverSocket.send(JSON.stringify({...extractKuromasu(), type}));
+                    break;
+                case 'yajikazu':
+                    solverSocket.send(JSON.stringify({...extractYajikazu(), type}));
                     break;
                 default:
                     solveButton.text('Solve');
