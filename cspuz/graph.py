@@ -289,10 +289,7 @@ def _division_connected(
     graph: Graph,
     roots: Optional[Sequence[Optional[int]]] = None,
     allow_empty_group: bool = False,
-    use_graph_primitive: Optional[bool] = None,
 ):
-    if use_graph_primitive is None:
-        use_graph_primitive = config.use_graph_primitive
 
     n = graph.num_vertices
     m = len(graph)
