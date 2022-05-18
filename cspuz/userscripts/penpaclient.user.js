@@ -22,6 +22,7 @@
     const puzzleOptions = [
         {name: 'Kurotto', val: 'kurotto'},
         {name: 'Kuromasu', val: 'kuromasu'},
+        {name: 'Shakashaka', val: 'shakashaka'},
         {name: 'Yajisan-Kazusan', val: 'yajikazu'},
     ];
 
@@ -68,6 +69,19 @@
         return numbers;
     };
 
+    const extractShading = function() {
+        const [width, height, shading] = [getWidth(), getHeight(), {}];
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const index = pu.centerlist[width * y + x];
+                if (pu.pu_q.surface[index] !== undefined) {
+                    shading[`(${y}, ${x})`] = (pu.pu_q.surface[index] !== 2);
+                }
+            }
+        }
+        return shading;
+    };
+
     const extractArrowNumbers = function() {
         const [width, height, arrowNumbers] = [getWidth(), getHeight(), {}];
         for (let y = 0; y < height; y++) {
@@ -90,6 +104,22 @@
             const index = pu.centerlist[width * y + x];
             if (value !== null) {
                 pu.pu_a.surface[index] = value ? 1 : 2
+            }
+        }
+        pu.redraw();
+    };
+
+    const displayTriangles = function(triangles) {
+        const width = getWidth();
+        for (const [cell, value] of Object.entries(triangles)) {
+            const [y, x] = JSON.parse(cell.replace(/\(/g, "[").replace(/\)/g, "]"));
+            const index = pu.centerlist[width * y + x];
+            if (value !== null) {
+                if (value === 0) {
+                    pu.pu_a.symbol[index] = [8, 'ox_B', 2];
+                } else {
+                    pu.pu_a.symbol[index] = [value, 'tri', 1];
+                }
             }
         }
         pu.redraw();
@@ -119,6 +149,14 @@
         displayShading(response.shading);
     };
 
+    const displayShakashakaSolution = function(response) {
+        displayTriangles(response.triangles);
+    };
+
+    const extractShakashaka = function() {
+        return {height: getHeight(), width: getWidth(), numbers: extractNumbers(), shading: extractShading()};
+    };
+
     const createSocket = function() {
         const socket = new WebSocket('ws://localhost:8765');
 
@@ -138,6 +176,9 @@
                     break;
                 case 'yajikazu':
                     displayYajikazuSolution(response);
+                    break;
+                case 'shakashaka':
+                    displayShakashakaSolution(response);
                     break;
             }
             solveButton.text('Solve');
@@ -176,6 +217,9 @@
                     break;
                 case 'yajikazu':
                     solverSocket.send(JSON.stringify({...extractYajikazu(), type}));
+                    break;
+                case 'shakashaka':
+                    solverSocket.send(JSON.stringify({...extractShakashaka(), type}));
                     break;
                 default:
                     solveButton.text('Solve');

@@ -3,7 +3,7 @@ import json
 import sys
 import websockets
 
-from cspuz.puzzle import kurotto, kuromasu, yajikazu
+from cspuz.puzzle import kurotto, kuromasu, shakashaka, yajikazu
 
 def serialize_puzzle_info(puzzle_info):
     json_data = {'type': puzzle_info['type'], 'height': puzzle_info['height'], 'width': puzzle_info['width']}
@@ -42,6 +42,15 @@ def parse_yajikazu(puzzle_info):
         problem_data[y][x] = {'U': '^', 'D': 'v', 'L': '<', 'R': '>'}[direction] + str(value)
     return height, width, problem_data
 
+def parse_shakashaka(puzzle_info):
+    height, width = puzzle_info['height'], puzzle_info['width']
+    problem_data = [[None for _ in range(width)] for _ in range(height)]
+    for (y, x), shaded in puzzle_info['shading'].items():
+        problem_data[y][x] = -1
+    for (y, x), val in puzzle_info['numbers'].items():
+        problem_data[y][x] = int(val)
+    return height, width, problem_data
+
 def impossible_shading(height, width):
     shading = {}
     for y in range(height):
@@ -53,11 +62,20 @@ def shading_from_sat(height, width, is_black):
     shading = {}
     for y in range(height):
         for x in range(width):
-            if is_black[y, x].sol is None:
-                shading[(y, x)] = None
-            else:
+            if is_black[y, x].sol is not None:
                 shading[(y, x)] = is_black[y, x].sol
     return shading
+
+def impossible_numbers(height, width):
+    return {(y, x): 0 for y in range(height) for x in range(width)}
+
+def numbers_from_sat(height, width, numbers):
+    ret = {}
+    for y in range(height):
+        for x in range(width):
+            if numbers[y, x].sol is not None:
+                ret[(y, x)] = numbers[y, x].sol
+    return ret
 
 async def echo(websocket):
     async for message in websocket:
@@ -88,6 +106,14 @@ async def echo(websocket):
                     await websocket.send(serialize_puzzle_info({'type': 'yajikazu', 'height': height, 'width': width, 'shading': shading_from_sat(height, width, is_black)}))
                 else:
                     await websocket.send(serialize_puzzle_info({'type': 'yajikazu', 'height': height, 'width': width, 'shading': impossible_shading(height, width)}))
+
+            elif puzzle_info['type'] == 'shakashaka':
+                height, width, problem_data = parse_shakashaka(puzzle_info)
+                is_sat, solution = shakashaka.solve_shakashaka(height, width, problem_data)
+                if is_sat:
+                    await websocket.send(serialize_puzzle_info({'type': 'shakashaka', 'height': height, 'width': width, 'triangles': numbers_from_sat(height, width, solution)}))
+                else:
+                    await websocket.send(serialize_puzzle_info({'type': 'shakashaka', 'height': height, 'width': width, 'shading': impossible_numbers(height, width)}))
 
             else:
                 print(f"Unknown puzzle type {puzzle_info['type']}", file=sys.stderr)
