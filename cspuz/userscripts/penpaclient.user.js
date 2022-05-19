@@ -22,6 +22,7 @@
     const puzzleOptions = [
         {name: 'Kurotto', val: 'kurotto'},
         {name: 'Kuromasu', val: 'kuromasu'},
+        {name: 'Look-Air', val: 'lookair'},
         {name: 'Shakashaka', val: 'shakashaka'},
         {name: 'Yajisan-Kazusan', val: 'yajikazu'},
     ];
@@ -149,12 +150,20 @@
         displayShading(response.shading);
     };
 
+    const extractShakashaka = function() {
+        return {height: getHeight(), width: getWidth(), numbers: extractNumbers(), shading: extractShading()};
+    };
+
     const displayShakashakaSolution = function(response) {
         displayTriangles(response.triangles);
     };
 
-    const extractShakashaka = function() {
-        return {height: getHeight(), width: getWidth(), numbers: extractNumbers(), shading: extractShading()};
+    const extractLookair = function() {
+        return {height: getHeight(), width: getWidth(), numbers: extractNumbers()};
+    };
+
+    const displayLookairSolution = function(response) {
+        displayShading(response.shading);
     };
 
     const createSocket = function() {
@@ -179,6 +188,9 @@
                     break;
                 case 'shakashaka':
                     displayShakashakaSolution(response);
+                    break;
+                case 'lookair':
+                    displayLookairSolution(response);
                     break;
             }
             solveButton.text('Solve');
@@ -220,6 +232,9 @@
                     break;
                 case 'shakashaka':
                     solverSocket.send(JSON.stringify({...extractShakashaka(), type}));
+                    break;
+                case 'lookair':
+                    solverSocket.send(JSON.stringify({...extractLookair(), type}));
                     break;
                 default:
                     solveButton.text('Solve');
