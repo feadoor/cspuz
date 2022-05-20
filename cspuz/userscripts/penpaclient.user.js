@@ -20,6 +20,7 @@
     let solverSocket = null;
 
     const puzzleOptions = [
+        {name: 'Canal View', val: 'canal'},
         {name: 'Kurotto', val: 'kurotto'},
         {name: 'Kuromasu', val: 'kuromasu'},
         {name: 'Look-Air', val: 'lookair'},
@@ -158,6 +159,14 @@
         displayTriangles(response.triangles);
     };
 
+    const extractCanalView = function() {
+        return {height: getHeight(), width: getWidth(), numbers: extractNumbers()}
+    };
+
+    const displayCanalViewSolution = function(response) {
+        displayShading(response.shading);
+    };
+
     const extractLookair = function() {
         return {height: getHeight(), width: getWidth(), numbers: extractNumbers()};
     };
@@ -191,6 +200,9 @@
                     break;
                 case 'lookair':
                     displayLookairSolution(response);
+                    break;
+                case 'canal':
+                    displayCanalViewSolution(response);
                     break;
             }
             solveButton.text('Solve');
@@ -235,6 +247,9 @@
                     break;
                 case 'lookair':
                     solverSocket.send(JSON.stringify({...extractLookair(), type}));
+                    break;
+                case 'canal':
+                    solverSocket.send(JSON.stringify({...extractCanalView(), type}));
                     break;
                 default:
                     solveButton.text('Solve');

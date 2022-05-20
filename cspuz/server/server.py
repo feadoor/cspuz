@@ -3,7 +3,7 @@ import json
 import sys
 import websockets
 
-from cspuz.puzzle import kurotto, kuromasu, lookair, shakashaka, yajikazu
+from cspuz.puzzle import canal_view, kurotto, kuromasu, lookair, shakashaka, yajikazu
 
 def serialize_puzzle_info(puzzle_info):
     json_data = {'type': puzzle_info['type'], 'height': puzzle_info['height'], 'width': puzzle_info['width']}
@@ -56,6 +56,13 @@ def parse_lookair(puzzle_info):
     problem_data = [[-1 for _ in range(width)] for _ in range(height)]
     for (y, x), val in puzzle_info['numbers'].items():
         problem_data[y][x] = int(val)
+    return height, width, problem_data
+
+def parse_canal_view(puzzle_info):
+    height, width = puzzle_info['height'], puzzle_info['width']
+    problem_data = [[-2 for _ in range(width)] for _ in range(height)]
+    for (y, x), val in puzzle_info['numbers'].items():
+        problem_data[y][x] = -1 if val == '' else int(val)
     return height, width, problem_data
 
 def impossible_shading(height, width):
@@ -129,6 +136,14 @@ async def echo(websocket):
                     await websocket.send(serialize_puzzle_info({'type': 'lookair', 'height': height, 'width': width, 'shading': shading_from_sat(height, width, is_black)}))
                 else:
                     await websocket.send(serialize_puzzle_info({'type': 'lookair', 'height': height, 'width': width, 'shading': impossible_shading(height, width)}))
+
+            elif puzzle_info['type'] == 'canal':
+                height, width, problem_data = parse_canal_view(puzzle_info)
+                is_sat, is_black = canal_view.solve_canal_view(height, width, problem_data)
+                if is_sat:
+                    await websocket.send(serialize_puzzle_info({'type': 'canal', 'height': height, 'width': width, 'shading': shading_from_sat(height, width, is_black)}))
+                else:
+                    await websocket.send(serialize_puzzle_info({'type': 'canal', 'height': height, 'width': width, 'shading': impossible_shading(height, width)}))
 
             else:
                 print(f"Unknown puzzle type {puzzle_info['type']}", file=sys.stderr)
