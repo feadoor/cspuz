@@ -73,7 +73,7 @@ def generate_lookair(
         builder_pattern=ArrayBuilder2D(
             height,
             width,
-            range(-1, 6),
+            [-1, 1, 2, 3, 4],
             default=-1,
             disallow_adjacent=disallow_adjacent,
             symmetry=symmetry,
