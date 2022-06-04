@@ -22,11 +22,11 @@ def solve_japanese_sums(height, width, n, clue_rows, clue_cols):
         return acc == clue
 
     def japanese_sums(cells, clues):
-        return (
-            (count_true((cells[:len(cells) - 1] != 0) & (cells[1:] == 0)) == (cells[len(cells) - 1] != 0).cond(len(clues) - 1, len(clues)))
-            & 
-            fold_and(sum_constraint(cells, clue, clue_idx) for clue_idx, clue in enumerate(clues) if clue > -1)
-        )
+        return fold_and(sum_constraint(cells, clue, clue_idx) for clue_idx, clue in enumerate(clues) if clue > -1)
+
+    def n_groups(shaded, n):
+        sz = len(shaded)
+        return count_true((~shaded)[:sz-1] & shaded[1:]) == shaded[sz-1].cond(n, n - 1)
 
     def no_repeats(cells):
         return fold_and(count_true(cells == v) <= 1 for v in range(1, n + 1))
@@ -34,11 +34,13 @@ def solve_japanese_sums(height, width, n, clue_rows, clue_cols):
     for row in range(height):
         solver.ensure(no_repeats(answer[row, :]))
         if clue_rows[row]:
+            solver.ensure(n_groups(shaded[row, :], len(clue_rows[row])))
             solver.ensure(japanese_sums(answer[row, :], clue_rows[row]))
 
     for col in range(width):
         solver.ensure(no_repeats(answer[:, col]))
         if clue_cols[col]:
+            solver.ensure(n_groups(shaded[:, col], len(clue_cols[col])))
             solver.ensure(japanese_sums(answer[:, col], clue_cols[col]))
 
     is_sat = solver.solve()
