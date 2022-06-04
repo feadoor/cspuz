@@ -22,7 +22,11 @@ def solve_japanese_sums(height, width, n, clue_rows, clue_cols):
         return acc == clue
 
     def japanese_sums(cells, clues):
-        return fold_and(sum_constraint(cells, clue, clue_idx) for clue_idx, clue in enumerate(clues + [0]) if clue > -1)
+        return (
+            (count_true((cells[:len(cells) - 1] != 0) & (cells[1:] == 0)) == (cells[len(cells) - 1] != 0).cond(len(clues) - 1, len(clues)))
+            & 
+            fold_and(sum_constraint(cells, clue, clue_idx) for clue_idx, clue in enumerate(clues) if clue > -1)
+        )
 
     def no_repeats(cells):
         return fold_and(count_true(cells == v) <= 1 for v in range(1, n + 1))
