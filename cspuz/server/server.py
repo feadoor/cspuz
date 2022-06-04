@@ -3,21 +3,29 @@ import json
 import sys
 import websockets
 
-from cspuz.puzzle import canal_view, kurotto, kuromasu, lookair, shakashaka, yajikazu
+from cspuz.puzzle import canal_view, japanese_sums, kurotto, kuromasu, lookair, shakashaka, yajikazu
 
 def serialize_puzzle_info(puzzle_info):
-    json_data = {'type': puzzle_info['type'], 'height': puzzle_info['height'], 'width': puzzle_info['width']}
+    json_data = {}
     for name in puzzle_info:
-        if name not in ['type', 'height', 'width']:
+        if isinstance(puzzle_info[name], dict):
             json_data[name] = {str(k): v for k, v in puzzle_info.get(name, {}).items()}
+        elif isinstance(puzzle_info[name], list):
+            json_data[name] = [str(v) for v in puzzle_info.get(name, [])]
+        else:
+            json_data[name] = puzzle_info[name]
     return json.dumps(json_data)
 
 def deserialize_puzzle_info(message):
     json_data = json.loads(message)
-    puzzle_info = {'type': json_data['type'], 'height': json_data['height'], 'width': json_data['width']}
+    puzzle_info = {}
     for name in json_data:
-        if name not in ['type', 'height', 'width']:
+        if isinstance(json_data[name], dict):
             puzzle_info[name] = {eval(k): v for k, v in json_data.get(name, {}).items()}
+        elif isinstance(json_data[name], list):
+            puzzle_info[name] = [v for v in json_data.get(name, [])]
+        else:
+            puzzle_info[name] = json_data[name]
     return puzzle_info
 
 def parse_kurotto(puzzle_info):
@@ -64,6 +72,12 @@ def parse_canal_view(puzzle_info):
     for (y, x), val in puzzle_info['numbers'].items():
         problem_data[y][x] = -1 if val == '' else int(val)
     return height, width, problem_data
+
+def parse_japanese_sums(puzzle_info):
+    height, width, n = puzzle_info['height'], puzzle_info['width'], puzzle_info['n']
+    clue_rows = [[int(v) if v != '?' else -1 for v in l] for l in puzzle_info['rows']]
+    clue_cols = [[int(v) if v != '?' else -1 for v in l] for l in puzzle_info['cols']]
+    return height, width, n, clue_rows, clue_cols
 
 def impossible_shading(height, width):
     shading = {}
@@ -127,7 +141,7 @@ async def echo(websocket):
                 if is_sat:
                     await websocket.send(serialize_puzzle_info({'type': 'shakashaka', 'height': height, 'width': width, 'triangles': numbers_from_sat(height, width, solution)}))
                 else:
-                    await websocket.send(serialize_puzzle_info({'type': 'shakashaka', 'height': height, 'width': width, 'shading': impossible_numbers(height, width)}))
+                    await websocket.send(serialize_puzzle_info({'type': 'shakashaka', 'height': height, 'width': width, 'triangles': impossible_numbers(height, width)}))
 
             elif puzzle_info['type'] == 'lookair':
                 height, width, problem_data = parse_lookair(puzzle_info)
@@ -144,6 +158,14 @@ async def echo(websocket):
                     await websocket.send(serialize_puzzle_info({'type': 'canal', 'height': height, 'width': width, 'shading': shading_from_sat(height, width, is_black)}))
                 else:
                     await websocket.send(serialize_puzzle_info({'type': 'canal', 'height': height, 'width': width, 'shading': impossible_shading(height, width)}))
+
+            elif puzzle_info['type'] == 'japanesesums':
+                height, width, n, clue_rows, clue_cols = parse_japanese_sums(puzzle_info)
+                is_sat, answer, shaded = japanese_sums.solve_japanese_sums(height, width, n, clue_rows, clue_cols)
+                if is_sat:
+                    await websocket.send(serialize_puzzle_info({'type': 'japanesesums', 'height': height, 'width': width, 'numbers': numbers_from_sat(height, width, answer), 'shading': shading_from_sat(height, width, shaded)}))
+                else:
+                    await websocket.send(serialize_puzzle_info({'type': 'japanesesums', 'height': height, 'width': width, 'shading': impossible_shading(height, width)}))
 
             else:
                 print(f"Unknown puzzle type {puzzle_info['type']}", file=sys.stderr)

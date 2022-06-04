@@ -21,6 +21,7 @@
 
     const puzzleOptions = [
         {name: 'Canal View', val: 'canal'},
+        {name: 'Japanese Sums', val: 'japanesesums'},
         {name: 'Kurotto', val: 'kurotto'},
         {name: 'Kuromasu', val: 'kuromasu'},
         {name: 'Look-Air', val: 'lookair'},
@@ -58,11 +59,21 @@
         return pu.ny - pu.space[0] - pu.space[1];
     };
 
+    const xy_to_index = function(y, x) {
+        return pu.nx0 * (y + pu.space[0] + 2) + x + pu.space[2] + 2;
+    };
+
+    const index_to_xy = function(index) {
+        const x = (index % pu.nx0) - pu.space[2] - 2;
+        const y = Math.floor(index / pu.nx0) - pu.space[0] - 2;
+        return [x, y];
+    };
+
     const extractNumbers = function() {
         const [width, height, numbers] = [getWidth(), getHeight(), {}];
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                const index = pu.centerlist[width * y + x];
+                const index = xy_to_index(y, x);
                 if (pu.pu_q.number[index] !== undefined) {
                     numbers[`(${y}, ${x})`] = pu.pu_q.number[index][0];
                 }
@@ -75,7 +86,7 @@
         const [width, height, shading] = [getWidth(), getHeight(), {}];
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                const index = pu.centerlist[width * y + x];
+                const index = xy_to_index(y, x);
                 if (pu.pu_q.surface[index] !== undefined) {
                     shading[`(${y}, ${x})`] = (pu.pu_q.surface[index] !== 2);
                 }
@@ -88,7 +99,7 @@
         const [width, height, arrowNumbers] = [getWidth(), getHeight(), {}];
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                const index = pu.centerlist[width * y + x];
+                const index = xy_to_index(y, x);
                 if (pu.pu_q.number[index] !== undefined && pu.pu_q.number[index][0].includes('_') && !pu.pu_q.number[index][0].startsWith('_')) {
                     const [number, dirVal] = pu.pu_q.number[index][0].split('_');
                     const dir = ['U', 'L', 'R', 'D'][parseInt(dirVal, 10)];
@@ -99,11 +110,50 @@
         return arrowNumbers;
     };
 
+    const extractOutsideTopNumbers = function() {
+        const [width, height, outsideNumbers] = [getWidth(), getHeight(), []];
+        for (let x = 0; x < width; x++) {
+            const numbers = [];
+            for (let y = -1; y >= -pu.space[0]; y--) {
+                const index = xy_to_index(y, x);
+                if (pu.pu_q.number[index] !== undefined) {
+                    numbers.push(pu.pu_q.number[index][0]);
+                }
+            }
+            outsideNumbers.push(numbers.reverse());
+        }
+        return outsideNumbers;
+    };
+
+    const extractOutsideLeftNumbers = function() {
+        const [width, height, outsideNumbers] = [getWidth(), getHeight(), []];
+        for (let y = 0; y < height; y++) {
+            const numbers = [];
+            for (let x = -1; x >= -pu.space[2]; x--) {
+                const index = xy_to_index(y, x);
+                if (pu.pu_q.number[index] !== undefined) {
+                    numbers.push(pu.pu_q.number[index][0]);
+                }
+            }
+            outsideNumbers.push(numbers.reverse());
+        }
+        return outsideNumbers;
+    };
+
+    const extractJapaneseSumsN = function() {
+        const [width, height] = [getWidth(), getHeight()];
+        const index = xy_to_index(height, width - 1);
+        if (pu.pu_q.number[index] !== undefined) {
+            return parseInt(pu.pu_q.number[index], 10);
+        } else {
+            return 9;
+        }
+    };
+
     const displayShading = function(shading) {
-        const width = getWidth();
         for (const [cell, value] of Object.entries(shading)) {
             const [y, x] = JSON.parse(cell.replace(/\(/g, "[").replace(/\)/g, "]"));
-            const index = pu.centerlist[width * y + x];
+            const index = xy_to_index(y, x);
             if (value !== null) {
                 pu.pu_a.surface[index] = value ? 1 : 2
             }
@@ -111,11 +161,21 @@
         pu.redraw();
     };
 
+    const displayNumbers = function(numbers) {
+        for (const [cell, value] of Object.entries(numbers)) {
+            const [y, x] = JSON.parse(cell.replace(/\(/g, "[").replace(/\)/g, "]"));
+            const index = xy_to_index(y, x);
+            if (value !== null) {
+                pu.pu_a.number[index] = [value, 9, '1'];
+            }
+        }
+        pu.redraw();
+    };
+
     const displayTriangles = function(triangles) {
-        const width = getWidth();
         for (const [cell, value] of Object.entries(triangles)) {
             const [y, x] = JSON.parse(cell.replace(/\(/g, "[").replace(/\)/g, "]"));
-            const index = pu.centerlist[width * y + x];
+            const index = xy_to_index(y, x)
             if (value !== null) {
                 if (value === 0) {
                     pu.pu_a.symbol[index] = [8, 'ox_B', 2];
@@ -175,6 +235,15 @@
         displayShading(response.shading);
     };
 
+    const extractJapaneseSums = function() {
+        return {height: getHeight(), width: getWidth(), rows: extractOutsideLeftNumbers(), cols: extractOutsideTopNumbers(), n: extractJapaneseSumsN()};
+    };
+
+    const displayJapaneseSumsSolution = function(response) {
+        displayShading(response.shading);
+        displayNumbers(Object.fromEntries(Object.entries(response.numbers).filter(([k, v]) => v !== 0)));
+    };
+
     const createSocket = function() {
         const socket = new WebSocket('ws://localhost:8765');
 
@@ -203,6 +272,9 @@
                     break;
                 case 'canal':
                     displayCanalViewSolution(response);
+                    break;
+                case 'japanesesums':
+                    displayJapaneseSumsSolution(response);
                     break;
             }
             solveButton.text('Solve');
@@ -250,6 +322,9 @@
                     break;
                 case 'canal':
                     solverSocket.send(JSON.stringify({...extractCanalView(), type}));
+                    break;
+                case 'japanesesums':
+                    solverSocket.send(JSON.stringify({...extractJapaneseSums(), type}));
                     break;
                 default:
                     solveButton.text('Solve');
