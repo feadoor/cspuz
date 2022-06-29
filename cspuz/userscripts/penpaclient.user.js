@@ -21,7 +21,6 @@
 
     const puzzleOptions = [
         {name: 'Canal View', val: 'canal'},
-        {name: 'Cipher Nurikabe', val: 'ciphernurikabe'},
         {name: 'Japanese Sums', val: 'japanesesums'},
         {name: 'Kurotto', val: 'kurotto'},
         {name: 'Kuromasu', val: 'kuromasu'},
@@ -245,14 +244,6 @@
         displayNumbers(Object.fromEntries(Object.entries(response.numbers).filter(([k, v]) => v !== 0)));
     };
 
-    const extractCipherNurikabe = function() {
-        return {height: getHeight(), width: getWidth(), numbers: extractNumbers()};
-    };
-
-    const displayCipherNurikabeSolution = function(response) {
-        displayShading(response.shading);
-    };
-
     const createSocket = function() {
         const socket = new WebSocket('ws://localhost:8765');
 
@@ -284,9 +275,6 @@
                     break;
                 case 'japanesesums':
                     displayJapaneseSumsSolution(response);
-                    break;
-                case 'ciphernurikabe':
-                    displayCipherNurikabeSolution(response);
                     break;
             }
             solveButton.text('Solve');
@@ -337,9 +325,6 @@
                     break;
                 case 'japanesesums':
                     solverSocket.send(JSON.stringify({...extractJapaneseSums(), type}));
-                    break;
-                case 'ciphernurikabe':
-                    solverSocket.send(JSON.stringify({...extractCipherNurikabe(), type}));
                     break;
                 default:
                     solveButton.text('Solve');
