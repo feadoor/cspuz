@@ -20,9 +20,9 @@ def stringify_array(array, symbol_map=None):
     return "\n".join(rows)
 
 
-_VERTICAL_EDGE = {None: " ", True: "|", False: "x"}
+_VERTICAL_EDGE = {None: " ", True: "|", False: " "}
 
-_HORIZONTAL_EDGE = {None: " ", True: "-", False: "x"}
+_HORIZONTAL_EDGE = {None: " ", True: "-", False: " "}
 
 
 def stringify_grid_frame(grid_frame):
