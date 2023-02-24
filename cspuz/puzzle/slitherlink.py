@@ -104,6 +104,7 @@ def _main():
                 problem = generate_slitherlink(height, width, symmetry=True, verbose=True)
                 if problem is not None:
                     print(util.stringify_array(problem, {-1: ".", 0: "0", 1: "1", 2: "2", 3: "3"}))
+                    print(serialize_slitherlink(problem))
                     print(flush=True)
             except subprocess.TimeoutExpired:
                 print("timeout", file=sys.stderr)

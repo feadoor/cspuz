@@ -137,7 +137,7 @@ def generate_firefly(height, width, min_clue=0, max_clue=5, verbose=False):
             cand.append(d + str(i))
     generated = generate_problem(
         lambda problem: solve_firefly(height, width, problem),
-        builder_pattern=ArrayBuilder2D(height, width, cand, default=".."),
+        builder_pattern=ArrayBuilder2D(height, width, cand, default="..", symmetry=True),
         clue_penalty=lambda problem: count_non_default_values(problem, default="..", weight=10),
         verbose=verbose,
     )
@@ -166,7 +166,7 @@ def _main():
         height, width = map(int, sys.argv[1:])
         while True:
             try:
-                problem = generate_firefly(height, width, min_clue=2, max_clue=7, verbose=True)
+                problem = generate_firefly(height, width, min_clue=0, max_clue=5, verbose=True)
                 if problem is not None:
                     print(util.stringify_array(problem))
                     print(flush=True)

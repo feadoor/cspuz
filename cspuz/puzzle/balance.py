@@ -65,8 +65,8 @@ def solve_balance(height, width, problem):
 def generate_balance(height, width, symmetry=True, verbose=False):
     generated = generate_problem(
         lambda problem: solve_balance(height, width, problem),
-        builder_pattern=ArrayBuilder2D(height, width, range(-9, 10), default=0, symmetry=symmetry),
-        clue_penalty=lambda problem: count_non_default_values(problem, default=0, weight=8),
+        builder_pattern=ArrayBuilder2D(height, width, [0, -1, 2, 4, 6, 8], default=0, symmetry=symmetry),
+        clue_penalty=lambda problem: count_non_default_values(problem, default=0, weight=6),
         verbose=verbose,
     )
     return generated
@@ -99,7 +99,7 @@ def _main():
             try:
                 problem = generate_balance(height, width, symmetry=True, verbose=True)
                 if problem is not None:
-                    print(util.stringify_array(problem, lambda x: "." if x == 0 else str(x)))
+                    print(util.stringify_array(problem, lambda x: ".." if x == 0 else '{0:2}'.format(x) if x > 0 else str(x)))
                     print(flush=True)
             except subprocess.TimeoutExpired:
                 print("timeout", file=sys.stderr)

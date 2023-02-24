@@ -197,9 +197,23 @@ def _main():
         if is_sat:
             print(util.stringify_array(has_star, {None: "?", True: "*", False: "."}))
     else:
-        n, k = map(int, sys.argv[1:])
+        n, k = 12, 2
+        starting_blocks = [
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,- 1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,- 1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,- 1],
+            [-1, -1, -1,  0,  0,  0,  1,  1,  1, -1, -1 ,- 1],
+            [-1, -1, -1,  0,  0,  0,  1,  1,  1, -1, -1 ,- 1],
+            [-1, -1, -1,  0,  0,  0,  1,  1,  1, -1, -1 ,- 1],
+            [-1, -1, -1,  2,  2,  2,  3,  3,  3, -1, -1 ,- 1],
+            [-1, -1, -1,  2,  2,  2,  3,  3,  3, -1, -1 ,- 1],
+            [-1, -1, -1,  2,  2,  2,  3,  3,  3, -1, -1 ,- 1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,- 1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,- 1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ,- 1],
+        ]
         while True:
-            problem = generate_star_battle(n, k, verbose=True)
+            problem = generate_star_battle(n, k, starting_blocks=starting_blocks, verbose=True)
             if problem is not None:
                 print(problem_to_pzv_url(n, k, problem), flush=True)
 
