@@ -21,6 +21,7 @@
 
     const puzzleOptions = [
         {name: 'Canal View', val: 'canal'},
+        {name: 'Guide Arrow', val: 'guidearrow'},
         {name: 'Japanese Sums', val: 'japanesesums'},
         {name: 'Kurotto', val: 'kurotto'},
         {name: 'Kuromasu', val: 'kuromasu'},
@@ -150,6 +151,33 @@
         }
     };
 
+    const extractArrowShapes = function() {
+        const [width, height, arrows] = [getWidth(), getHeight(), {}];
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const index = xy_to_index(y, x);
+                if (pu.pu_q.symbol[index] !== undefined && pu.pu_q.symbol[index][1] === 'arrow_B_W') {
+                    const dir = ['.', 'L', '.', 'U', '.', 'R', '.', 'D'][pu.pu_q.symbol[index][0]];
+                    arrows[`(${y}, ${x})`] = dir;
+                }
+            }
+        }
+        return arrows;
+    };
+
+    const extractStarLocation = function() {
+        const [width, height] = [getWidth(), getHeight()];
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const index = xy_to_index(y, x);
+                if (pu.pu_q.symbol[index] !== undefined && pu.pu_q.symbol[index][1] == 'star') {
+                    return `(${y}, ${x})`;
+                }
+            }
+        }
+        return undefined;
+    }
+
     const displayShading = function(shading) {
         for (const [cell, value] of Object.entries(shading)) {
             const [y, x] = JSON.parse(cell.replace(/\(/g, "[").replace(/\)/g, "]"));
@@ -244,6 +272,14 @@
         displayNumbers(Object.fromEntries(Object.entries(response.numbers).filter(([k, v]) => v !== 0)));
     };
 
+    const extractGuideArrow = function() {
+        return {height: getHeight(), width: getWidth(), arrows: extractArrowShapes(), star: extractStarLocation()};
+    };
+
+    const displayGuideArrowSolution = function(response) {
+        displayShading(response.shading);
+    };
+
     const createSocket = function() {
         const socket = new WebSocket('ws://localhost:8765');
 
@@ -275,6 +311,9 @@
                     break;
                 case 'japanesesums':
                     displayJapaneseSumsSolution(response);
+                    break;
+                case 'guidearrow':
+                    displayGuideArrowSolution(response);
                     break;
             }
             solveButton.text('Solve');
@@ -325,6 +364,9 @@
                     break;
                 case 'japanesesums':
                     solverSocket.send(JSON.stringify({...extractJapaneseSums(), type}));
+                    break;
+                case 'guidearrow':
+                    solverSocket.send(JSON.stringify({...extractGuideArrow(), type}));
                     break;
                 default:
                     solveButton.text('Solve');

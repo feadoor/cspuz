@@ -3,7 +3,7 @@ import json
 import sys
 import websockets
 
-from cspuz.puzzle import canal_view, japanese_sums, kurotto, kuromasu, lookair, shakashaka, yajikazu
+from cspuz.puzzle import canal_view, guide_arrow, japanese_sums, kurotto, kuromasu, lookair, shakashaka, yajikazu
 
 def serialize_puzzle_info(puzzle_info):
     json_data = {}
@@ -78,6 +78,16 @@ def parse_japanese_sums(puzzle_info):
     clue_rows = [[int(v) if v != '?' else -1 for v in l] for l in puzzle_info['rows']]
     clue_cols = [[int(v) if v != '?' else -1 for v in l] for l in puzzle_info['cols']]
     return height, width, n, clue_rows, clue_cols
+
+def parse_guide_arrow(puzzle_info):
+    height, width = puzzle_info['height'], puzzle_info['width']
+    problem_data = [['.' for _ in range(width)] for _ in range(height)]
+    for (y, x), direction in puzzle_info['arrows'].items():
+        problem_data[y][x] = {'U': '^', 'D': 'v', 'L': '<', 'R': '>'}[direction]
+    if puzzle_info.get('star', None) is not None:
+        (y, x) = eval(puzzle_info['star'])
+        problem_data[y][x] = '*'
+    return height, width, problem_data
 
 def impossible_shading(height, width):
     shading = {}
@@ -166,6 +176,14 @@ async def echo(websocket):
                     await websocket.send(serialize_puzzle_info({'type': 'japanesesums', 'height': height, 'width': width, 'numbers': numbers_from_sat(height, width, answer), 'shading': shading_from_sat(height, width, shaded)}))
                 else:
                     await websocket.send(serialize_puzzle_info({'type': 'japanesesums', 'height': height, 'width': width, 'shading': impossible_shading(height, width), 'numbers': {}}))
+
+            elif puzzle_info['type'] == 'guidearrow':
+                height, width, problem_data = parse_guide_arrow(puzzle_info)
+                is_sat, is_black = guide_arrow.solve_guide_arrow(height, width, problem_data)
+                if is_sat:
+                    await websocket.send(serialize_puzzle_info({'type': 'guidearrow', 'height': height, 'width': width, 'shading': shading_from_sat(height, width, is_black)}))
+                else:
+                    await websocket.send(serialize_puzzle_info({'type': 'guidearrow', 'height': height, 'width': width, 'shading': impossible_shading(height, width)}))
 
             else:
                 print(f"Unknown puzzle type {puzzle_info['type']}", file=sys.stderr)
