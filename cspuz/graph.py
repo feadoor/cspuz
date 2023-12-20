@@ -3,7 +3,7 @@ from typing import Iterator, List, Optional, Sequence, Tuple, Union, cast, overl
 from .array import Array2D, BoolArray1D, BoolArray2D, IntArray1D, IntArray2D, _infer_shape
 from .constraints import IntExpr, BoolExpr, Op, count_true, then
 from .expr import BoolExprLike, IntExprLike
-from .grid_frame import BoolGridFrame
+from .grid_frame import BoolGridFrame, BoolInnerGridFrame
 from .configuration import config
 from .solver import Solver
 
@@ -32,6 +32,23 @@ class Graph(object):
         self.edges.append((i, j))
         self.incident_edges[i].append((j, edge_id))
         self.incident_edges[j].append((i, edge_id))
+
+    def line_graph(self) -> "Graph":
+        n = self.num_vertices
+        edges = set()
+        for v in range(n):
+            for i in range(len(self.incident_edges[v])):
+                for j in range(i):
+                    x = self.incident_edges[v][i][1]
+                    y = self.incident_edges[v][j][1]
+                    if x < y:
+                        edges.add((x, y))
+                    else:
+                        edges.add((y, x))
+        ret = Graph(len(self))
+        for x, y in edges:
+            ret.add_edge(x, y)
+        return ret
 
 
 def _get_array_shape_2d(array):
@@ -79,6 +96,10 @@ def _active_vertices_connected(
     if use_graph_primitive is None:
         use_graph_primitive = config.use_graph_primitive
     if use_graph_primitive and not acyclic:
+        if len(is_active) != graph.num_vertices:
+            raise ValueError(
+                "is_active must have the same number of items as that of vertices in graph"
+            )
         solver.ensure(
             BoolExpr(
                 Op.GRAPH_ACTIVE_VERTICES_CONNECTED,
@@ -394,7 +415,7 @@ def division_connected(
             division,
             num_regions,
             graph,
-            roots=cast("Union[Sequence[Optional[int]]]", roots),
+            roots=cast("Sequence[Optional[int]]", roots),
             allow_empty_group=allow_empty_group,
         )
 
@@ -585,6 +606,72 @@ def division_connected_variable_groups(
         )
 
 
+def _division_connected_variable_groups_with_borders(
+    solver: Solver,
+    graph: Graph,
+    group_size: Sequence[Optional[IntExprLike]],
+    is_border: Sequence[BoolExprLike],
+    use_graph_primitive: Optional[bool],
+):
+    if use_graph_primitive is None:
+        use_graph_primitive = config.use_graph_division_primitive
+
+    if len(group_size) != graph.num_vertices:
+        raise ValueError(
+            "group_size must have the same number of items as that of vertices in graph"
+        )
+    if len(is_border) != len(graph):
+        raise ValueError("group_size must have the same number of items as that of edges in graph")
+
+    if use_graph_primitive:
+        solver.ensure(
+            BoolExpr(
+                Op.GRAPH_DIVISION,
+                [graph.num_vertices, len(graph)]
+                + [group_size[i] for i in range(len(group_size))]  # type: ignore
+                + sum([[x, y] for x, y in graph.edges], [])  # type: ignore
+                + [is_border[i] for i in range(len(is_border))],  # type: ignore
+            )
+        )
+    else:
+        group_id = _division_connected_variable_groups(solver, graph, group_size)
+        for i, (u, v) in enumerate(graph):
+            solver.ensure(is_border[i] == (group_id[u] != group_id[v]))
+
+
+def division_connected_variable_groups_with_borders(
+    solver: Solver,
+    *,
+    group_size: Union[
+        None,
+        Sequence[Optional[IntExprLike]],
+        IntArray2D,
+    ],
+    is_border: Union[Sequence[BoolExprLike], BoolInnerGridFrame],
+    graph: Graph = None,
+    use_graph_primitive: Optional[bool] = None,
+):
+    if graph is None:
+        if not isinstance(group_size, IntArray2D):
+            raise TypeError(
+                "`group_size` should be an IntArray2D if graph is not specified"
+            )
+        if not isinstance(is_border, BoolInnerGridFrame):
+            raise TypeError(
+                "`is_border` should be a BoolInnerGridFrame if graph is not specified"
+            )
+
+        group_size_flat = group_size.flatten()
+        edges, graph = _from_grid_frame(is_border.dual())
+        _division_connected_variable_groups_with_borders(solver, graph, group_size_flat, edges, use_graph_primitive)
+    else:
+        if group_size is None:
+            group_size = [None for _ in range(graph.num_vertices)]
+        _division_connected_variable_groups_with_borders(
+            solver, graph, group_size, is_border, use_graph_primitive
+        )
+
+
 def _active_edges_single_cycle(
     solver: Solver,
     is_active_edge: Sequence[BoolExprLike],
@@ -601,23 +688,10 @@ def _active_edges_single_cycle(
         for i in range(n):
             degree = count_true([is_active_edge[e] for j, e in graph.incident_edges[i]])
             solver.ensure(degree == is_passed[i].cond(2, 0))
-        edge_graph = set()
-        for v in range(n):
-            for i in range(len(graph.incident_edges[v])):
-                for j in range(i):
-                    x = graph.incident_edges[v][i][1]
-                    y = graph.incident_edges[v][j][1]
-                    if x < y:
-                        edge_graph.add((x, y))
-                    else:
-                        edge_graph.add((y, x))
-        solver.ensure(
-            BoolExpr(
-                Op.GRAPH_ACTIVE_VERTICES_CONNECTED,
-                [len(graph), len(edge_graph)]
-                + [is_active_edge[i] for i in range(len(is_active_edge))]  # type: ignore
-                + sum([[x, y] for x, y in edge_graph], []),  # type: ignore
-            )
+
+        line_graph = graph.line_graph()
+        _active_vertices_connected(
+            solver, is_active_edge, line_graph, acyclic=False, use_graph_primitive=True
         )
     else:
         rank = solver.int_array(n, 0, n - 1)

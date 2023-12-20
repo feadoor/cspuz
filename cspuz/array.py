@@ -50,6 +50,13 @@ class Array1D(Generic[T]):
     def __len__(self) -> int:
         return self.shape[0]
 
+    def __bool__(self):
+        raise ValueError(
+            "CSP values cannot be converted to a bool value. "
+            "Perhaps you are using 'and', 'or' or 'not' on CSP values. "
+            "For logical operations, use '&', '|' or '~' instead, respectively."
+        )
+
 
 def _infer_shape(data: List[List[T]]) -> Tuple[int, int]:
     if len(data) == 0:
@@ -206,6 +213,13 @@ class Array2D(Generic[T]):
     def __len__(self) -> int:
         return self.shape[0]
 
+    def __bool__(self):
+        raise ValueError(
+            "CSP values cannot be converted to a bool value. "
+            "Perhaps you are using 'and', 'or' or 'not' on CSP values. "
+            "For logical operations, use '&', '|' or '~' instead, respectively."
+        )
+
 
 def _is_bool_like(value: Any) -> bool:
     return isinstance(value, (BoolExpr, bool, BoolArray1D, BoolArray2D))
@@ -355,6 +369,12 @@ class BoolArray1D(Array1D[BoolExpr]):
     def __ne__(self, other: BoolOperand1D) -> "BoolArray1D":  # type: ignore
         return _elementwise(Op.XOR, self.shape, [self, other])
 
+    def __xor__(self, other: BoolOperand1D) -> "BoolArray1D":
+        return _elementwise(Op.XOR, self.shape, [self, other])
+
+    def __rxor__(self, other: BoolOperand1D) -> "BoolArray1D":
+        return _elementwise(Op.XOR, self.shape, [other, self])
+
     def fold_or(self) -> BoolExpr:
         return NotImplemented  # TODO
 
@@ -492,6 +512,12 @@ class BoolArray2D(Array2D[BoolExpr]):
 
     def __ne__(self, other: BoolOperand2D) -> "BoolArray2D":  # type: ignore
         return _elementwise(Op.XOR, self.shape, [self, other])
+
+    def __xor__(self, other: BoolOperand2D) -> "BoolArray2D":
+        return _elementwise(Op.XOR, self.shape, [self, other])
+
+    def __rxor__(self, other: BoolOperand2D) -> "BoolArray2D":
+        return _elementwise(Op.XOR, self.shape, [other, self])
 
     def fold_or(self) -> BoolExpr:
         return NotImplemented  # TODO

@@ -37,6 +37,7 @@ class Op(Enum):
     IF = auto()  # if (bool) { int } else { int } : int
     ALLDIFF = auto()  # alldifferent(int*) : bool
     GRAPH_ACTIVE_VERTICES_CONNECTED = auto()
+    GRAPH_DIVISION = auto()
 
 
 BoolOp = Literal[
@@ -148,6 +149,13 @@ class Expr:
     def is_variable(self) -> bool:
         return False
 
+    def __bool__(self):
+        raise ValueError(
+            "CSP values cannot be converted to a bool value. "
+            "Perhaps you are using 'and', 'or' or 'not' on CSP values. "
+            "For logical operations, use '&', '|' or '~' instead, respectively."
+        )
+
 
 class BoolExpr(Expr):
     def __init__(self, op: Op, operands: Iterable[ExprLike]):
@@ -245,6 +253,12 @@ class BoolExpr(Expr):
 
     def __ne__(self, other: BoolExprLike) -> "BoolExpr":  # type: ignore
         return _make_bool_expr(Op.XOR, [self, other])
+
+    def __xor__(self, other: BoolExprLike) -> "BoolExpr":
+        return _make_bool_expr(Op.XOR, [self, other])
+
+    def __rxor__(self, other: BoolExprLike) -> "BoolExpr":
+        return _make_bool_expr(Op.XOR, [other, self])
 
     def fold_or(self) -> "BoolExpr":
         return self
