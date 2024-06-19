@@ -7,7 +7,6 @@
 // @match        https://swaroopg92.github.io/penpa-edit/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=github.io
 // @grant        none
-// @require      http://code.jquery.com/jquery-3.6.0.min.js
 // @run-at       document-end
 // ==/UserScript==
 
