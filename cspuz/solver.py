@@ -42,11 +42,13 @@ class Solver(object):
     variables: List[Union[BoolVar, IntVar]]
     is_answer_key: List[bool]
     constraints: List[BoolExprLike]
+    stack: List[int]
 
     def __init__(self):
         self.variables = []
         self.is_answer_key = []
         self.constraints = []
+        self.stack = []
 
     def bool_var(self) -> BoolVar:
         v = BoolVar(len(self.variables))
@@ -59,6 +61,24 @@ class Solver(object):
         self.variables.append(v)
         self.is_answer_key.append(False)
         return v
+    
+    def push(self):
+        self.stack.append((len(self.variables), len(self.constraints)))
+
+    def pop(self):
+        (var_index, cons_index) = self.stack.pop()
+        del self.variables[var_index:]
+        del self.is_answer_key[var_index:]
+        del self.constraints[cons_index:]
+
+    def has_unique_answer(self):
+        if not self.find_answer():
+            return False
+        difference_cond = [var != var.sol for (is_answer, var) in zip(self.is_answer_key, self.variables) if is_answer]
+        self.ensure(BoolExpr(Op.OR, difference_cond))
+        is_unique = not self.find_answer()
+        self.constraints.pop()
+        return is_unique
 
     @overload
     def bool_array(self, shape: Union[int, Tuple[int]]) -> BoolArray1D:

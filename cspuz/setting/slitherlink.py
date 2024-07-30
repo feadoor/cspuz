@@ -1,0 +1,108 @@
+from cspuz import Solver, graph
+from cspuz.constraints import count_true
+from cspuz.grid_frame import BoolGridFrame
+from cspuz.puzzle import util
+
+from typing import List
+
+import sys
+
+class Slitherlink:
+    height: int
+    width: int
+    grid_frame: BoolGridFrame
+    is_determined: List[List[bool]]
+    solver: Solver
+
+    def __init__(self, height, width):
+        self.width = width
+        self.height = height
+        self.solver = Solver()
+        self.grid_frame = BoolGridFrame(self.solver, height, width)
+        self.is_determined = [[False for _ in self.grid_frame.all_edges()]]
+        self.add_base_constraints()
+
+    def add_base_constraints(self):
+        self.solver.add_answer_key(self.grid_frame)
+        graph.active_edges_single_cycle(self.solver, self.grid_frame)
+
+    def add_clue_constraint(self, cell, value):
+        (y, x) = cell
+        self.solver.ensure(count_true(self.grid_frame.cell_neighbors(y, x)) == value)
+    
+    def push(self):
+        self.solver.push()
+        self.is_determined.append(self.is_determined[-1][:])
+
+    def pop(self):
+        self.solver.pop()
+        self.is_determined.pop()
+
+    def solve_irrefutably(self):
+        if self.solver.solve():
+            for idx, edge in enumerate(self.grid_frame.all_edges()):
+                if edge.sol is not None and not self.is_determined[-1][idx]:
+                    self.solver.ensure(edge == edge.sol)
+                    self.is_determined[-1][idx] = True
+            return True
+        else:
+            return False
+    
+    def is_unique(self):
+        return self.solver.has_unique_answer()
+
+if __name__ == '__main__':
+
+    problem = [
+        [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+        [ 1,  3,  2, -1, -1,  2,  2,  3, -1, -1,  3,  2,  2, -1, -1,  1,  1,  3, -1],
+        [ 1, -1,  1, -1, -1,  3, -1,  2, -1, -1,  3, -1,  1, -1, -1,  3, -1,  1, -1],
+        [ 3,  1,  3, -1, -1,  3,  1,  1, -1, -1,  1,  3,  2, -1, -1,  3,  2,  2, -1],
+        [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+        [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+        [-1,  3,  2,  2, -1, -1,  2,  2,  1, -1, -1,  2,  1,  3, -1, -1,  3,  3,  2],
+        [-1,  1, -1,  3, -1, -1,  3, -1,  3, -1, -1,  3, -1,  2, -1, -1,  2, -1,  1],
+        [-1,  1,  2,  3, -1, -1,  3,  2,  1, -1, -1,  2,  3,  1, -1, -1,  3,  1,  2],
+        [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    ]
+
+    height = len(problem)
+    width = len(problem[0])
+    assert(all(len(row) == width) for row in problem)
+
+    slither = Slitherlink(height, width)
+    clue_cells = []
+    clue_values = []
+
+    for y in range(height):
+        for x in range(width):
+            if 0 <= problem[y][x] <= 3:
+                slither.add_clue_constraint((y, x), problem[y][x])
+            elif problem[y][x] == 4:
+                clue_cells.append((y, x))
+
+    def search():
+
+        if len(clue_values) == len(clue_cells):
+            print(f'PROGRESS: {clue_values}', file=sys.stderr)
+            if slither.is_unique():
+                if len(clue_values) == 8:
+                    print(f'{clue_values[0]} {clue_values[1]} {clue_values[2]}\n{clue_values[3]}   {clue_values[4]}\n{clue_values[5]} {clue_values[6]} {clue_values[7]}\n', flush=True)
+                else:
+                    print(f'UNIQUE: {clue_values}', flush=True)
+
+        else:
+            for val in range(1, 4):
+                slither.push()
+                slither.add_clue_constraint(clue_cells[len(clue_values)], val)
+                if slither.solve_irrefutably():
+                    clue_values.append(val)
+                    search()
+                    clue_values.pop()
+                slither.pop()
+
+    if len(clue_cells) > 0:
+        search()
+    else:
+        slither.solve_irrefutably()
+        print(util.stringify_grid_frame(slither.grid_frame))

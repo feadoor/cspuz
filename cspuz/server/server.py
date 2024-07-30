@@ -3,7 +3,7 @@ import json
 import sys
 import websockets
 
-from cspuz.puzzle import canal_view, guide_arrow, japanese_sums, kurotto, kuromasu, lookair, shakashaka, yajikazu
+from cspuz.puzzle import canal_view, guide_arrow, japanese_sums, kurotto, kuromasu, lookair, shakashaka, turning_fences, yajikazu
 
 def serialize_puzzle_info(puzzle_info):
     json_data = {}
@@ -89,6 +89,13 @@ def parse_guide_arrow(puzzle_info):
         problem_data[y][x] = '*'
     return height, width, problem_data
 
+def parse_turning_fences(puzzle_info):
+    height, width = puzzle_info['height'], puzzle_info['width']
+    problem_data = [[-1 for _ in range(width)] for _ in range(height)]
+    for (y, x), val in puzzle_info['numbers'].items():
+        problem_data[y][x] = int(val)
+    return height, width, problem_data
+
 def impossible_shading(height, width):
     shading = {}
     for y in range(height):
@@ -114,6 +121,28 @@ def numbers_from_sat(height, width, numbers):
             if numbers[y, x].sol is not None:
                 ret[(y, x)] = numbers[y, x].sol
     return ret
+
+def impossible_edges(height, width):
+    edge, cross = [], []
+    for y in range(height + 1):
+        for x in range(width):
+            cross.append(((y, x), (y, x + 1)))
+    for y in range(height):
+        for x in range(width + 1):
+            cross.append(((y, x), (y + 1, x)))
+    return {'edge': edge, 'cross': cross}
+
+def edges_from_sat(height, width, edges):
+    edge, cross = [], []
+    for y in range(height + 1):
+        for x in range(width):
+            if edges.horizontal[y, x].sol is not None:
+                (edge if edges.horizontal[y, x].sol else cross).append(((y, x), (y, x + 1)))
+    for x in range(width + 1):
+        for y in range(height):
+            if edges.vertical[y, x].sol is not None:
+                (edge if edges.vertical[y, x].sol else cross).append(((y, x), (y + 1, x)))
+    return {'edge': edge, 'cross': cross}
 
 async def echo(websocket):
     async for message in websocket:
@@ -184,6 +213,14 @@ async def echo(websocket):
                     await websocket.send(serialize_puzzle_info({'type': 'guidearrow', 'height': height, 'width': width, 'shading': shading_from_sat(height, width, is_black)}))
                 else:
                     await websocket.send(serialize_puzzle_info({'type': 'guidearrow', 'height': height, 'width': width, 'shading': impossible_shading(height, width)}))
+
+            elif puzzle_info['type'] == 'turningfences':
+                height, width, problem_data = parse_turning_fences(puzzle_info)
+                is_sat, is_edge = turning_fences.solve_turning_fences(height, width, problem_data)
+                if is_sat:
+                    await websocket.send(serialize_puzzle_info({'type': 'turningfences', 'height': height, 'width': width, 'edges': edges_from_sat(height, width, is_edge)}))
+                else:
+                    await websocket.send(serialize_puzzle_info({'type': 'turningfences', 'height': height, 'width': width, 'edges': impossible_edges(height, width)}))
 
             else:
                 print(f"Unknown puzzle type {puzzle_info['type']}", file=sys.stderr)

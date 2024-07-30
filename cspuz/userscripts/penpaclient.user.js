@@ -26,6 +26,7 @@
         {name: 'Kuromasu', val: 'kuromasu'},
         {name: 'Look-Air', val: 'lookair'},
         {name: 'Shakashaka', val: 'shakashaka'},
+        {name: 'Turning Fences', val: 'turningfences'},
         {name: 'Yajisan-Kazusan', val: 'yajikazu'},
     ];
 
@@ -63,10 +64,16 @@
         return pu.nx0 * (y + pu.space[0] + 2) + x + pu.space[2] + 2;
     };
 
-    const index_to_xy = function(index) {
-        const x = (index % pu.nx0) - pu.space[2] - 2;
-        const y = Math.floor(index / pu.nx0) - pu.space[0] - 2;
-        return [x, y];
+    const xy_to_vertex = function(y, x) {
+        return pu.nx0 * pu.ny0 + pu.nx0 * (y + pu.space[0] + 1) + x + pu.space[2] + 1;
+    };
+
+    const xy_pair_to_edge = function(y1, x1, y2, x2) {
+        if (x2 === x1 + 1) {
+            return 2 * pu.nx0 * pu.ny0 + pu.nx0 * (y1 + pu.space[0] + 1) + x1 + pu.space[2] + 2;
+        } else if (y2 === y1 + 1) {
+            return 3 * pu.nx0 * pu.ny0 + pu.nx0 * (y1 + pu.space[0] + 2) + x1 + pu.space[2] + 1;
+        }
     };
 
     const extractNumbers = function() {
@@ -214,6 +221,21 @@
         pu.redraw();
     };
 
+    const displayEdges = function(edges) {
+        const { edge, cross } = edges;
+        for (const e of edge) {
+            const [[y1, x1], [y2, x2]] = e;
+            const [index1, index2] = [xy_to_vertex(y1, x1), xy_to_vertex(y2, x2)];
+            pu.pu_a.lineE[`${index1},${index2}`] = 3;
+        }
+        for (const c of cross) {
+            const [[y1, x1], [y2, x2]] = c;
+            const index = xy_pair_to_edge(y1, x1, y2, x2);
+            pu.pu_a.lineE[index] = 98;
+        }
+        pu.redraw();
+    }
+
     const extractKurotto = function() {
         return {height: getHeight(), width: getWidth(), numbers: extractNumbers()};
     };
@@ -279,6 +301,14 @@
         displayShading(response.shading);
     };
 
+    const extractTurningFences = function() {
+        return {height: getHeight(), width: getWidth(), numbers: extractNumbers()};
+    }
+
+    const displayTurningFencesSolution = function(response) {
+        displayEdges(response.edges);
+    }
+
     const createSocket = function() {
         const socket = new WebSocket('ws://localhost:8765');
 
@@ -313,6 +343,9 @@
                     break;
                 case 'guidearrow':
                     displayGuideArrowSolution(response);
+                    break;
+                case 'turningfences':
+                    displayTurningFencesSolution(response);
                     break;
             }
             solveButton.text('Solve');
@@ -366,6 +399,9 @@
                     break;
                 case 'guidearrow':
                     solverSocket.send(JSON.stringify({...extractGuideArrow(), type}));
+                    break;
+                case 'turningfences':
+                    solverSocket.send(JSON.stringify({...extractTurningFences(), type}));
                     break;
                 default:
                     solveButton.text('Solve');

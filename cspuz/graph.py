@@ -689,6 +689,59 @@ def division_connected_variable_groups_with_borders(
             solver, graph, group_size, is_border, use_graph_primitive
         )
 
+def _active_edges_connected(
+    solver: Solver,
+    is_active_edge: Sequence[BoolExprLike],
+    graph: Graph,
+    use_graph_primitive: Optional[bool] = None,
+):
+    line_graph = graph.line_graph()
+    _active_vertices_connected(
+        solver, is_active_edge, line_graph, acyclic=False, use_graph_primitive=use_graph_primitive
+    )
+
+@overload
+def active_edges_connected(
+    solver: Solver, is_active_edge: BoolGridFrame, *, use_graph_primitive: Optional[bool] = None
+):
+    ...
+
+
+@overload
+def active_edges_connected(
+    solver: Solver,
+    is_active_edge: Union[Sequence[BoolExprLike], BoolArray1D],
+    graph: Graph,
+    *,
+    use_graph_primitive: Optional[bool] = None,
+):
+    ...
+
+
+def active_edges_connected(
+    solver: Solver,
+    is_active_edge: Union[BoolGridFrame, Sequence[BoolExprLike], BoolArray1D],
+    graph: Optional[Graph] = None,
+    *,
+    use_graph_primitive: Optional[bool] = None,
+):
+    if graph is None:
+        if not isinstance(is_active_edge, BoolGridFrame):
+            raise TypeError(
+                "`is_active_edge` should be a BoolGridFrame if graph is not " "specified"
+            )
+        edges, graph = _from_grid_frame(is_active_edge)
+        _active_edges_connected(
+            solver, edges, graph, use_graph_primitive=use_graph_primitive
+        )
+    else:
+        if isinstance(is_active_edge, BoolGridFrame):
+            raise TypeError("'is_active_edge' should be sequence-like if graph is " "specified")
+        if isinstance(is_active_edge, BoolArray1D):
+            is_active_edge = is_active_edge.data
+        _active_edges_connected(
+            solver, is_active_edge, graph, use_graph_primitive=use_graph_primitive
+        )
 
 def _active_edges_single_cycle(
     solver: Solver,
