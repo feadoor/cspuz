@@ -3,7 +3,7 @@ import json
 import sys
 import websockets
 
-from cspuz.puzzle import canal_view, guide_arrow, japanese_sums, kurotto, kuromasu, lookair, shakashaka, turning_fences, yajikazu
+from cspuz.puzzle import canal_view, guide_arrow, japanese_sums, kurotto, kuromasu, lookair, shakashaka, turning_fences, ubahn, yajikazu
 
 def serialize_puzzle_info(puzzle_info):
     json_data = {}
@@ -96,6 +96,19 @@ def parse_turning_fences(puzzle_info):
         problem_data[y][x] = int(val)
     return height, width, problem_data
 
+def parse_ubahn(puzzle_info):
+    height, width = puzzle_info['height'], puzzle_info['width']
+    row_clues, col_clues = [], []
+    for idx, clues in enumerate(puzzle_info['rows']):
+        for type_idx, clue in enumerate(clues):
+            if clue != '':
+                row_clues.append((idx, type_idx + 1, int(clue)))
+    for idx, clues in enumerate(puzzle_info['cols']):
+        for type_idx, clue in enumerate(clues):
+            if clue != '':
+                col_clues.append((idx, type_idx + 1, int(clue)))
+    return height, width, row_clues, col_clues
+
 def impossible_shading(height, width):
     shading = {}
     for y in range(height):
@@ -143,6 +156,28 @@ def edges_from_sat(height, width, edges):
             if edges.vertical[y, x].sol is not None:
                 (edge if edges.vertical[y, x].sol else cross).append(((y, x), (y + 1, x)))
     return {'edge': edge, 'cross': cross}
+
+def impossible_lines(height, width):
+    line, cross = [], []
+    for y in range(height):
+        for x in range(width - 1):
+            cross.append(((y, x), (y, x + 1)))
+    for y in range(height - 1):
+        for x in range(width):
+            cross.append(((y, x), (y + 1, x)))
+    return {'line': line, 'cross': cross}
+
+def lines_from_sat(height, width, lines):
+    line, cross = [], []
+    for y in range(height):
+        for x in range(width - 1):
+            if lines.horizontal[y, x].sol is not None:
+                (line if lines.horizontal[y, x].sol else cross).append(((y, x), (y, x + 1)))
+    for x in range(width):
+        for y in range(height - 1):
+            if lines.vertical[y, x].sol is not None:
+                (line if lines.vertical[y, x].sol else cross).append(((y, x), (y + 1, x)))
+    return {'line': line, 'cross': cross}
 
 async def echo(websocket):
     async for message in websocket:
@@ -221,6 +256,14 @@ async def echo(websocket):
                     await websocket.send(serialize_puzzle_info({'type': 'turningfences', 'height': height, 'width': width, 'edges': edges_from_sat(height, width, is_edge)}))
                 else:
                     await websocket.send(serialize_puzzle_info({'type': 'turningfences', 'height': height, 'width': width, 'edges': impossible_edges(height, width)}))
+
+            elif puzzle_info['type'] == 'ubahn':
+                height, width, row_clues, col_clues = parse_ubahn(puzzle_info)
+                is_sat, is_line = ubahn.solve_ubahn(height, width, row_clues, col_clues)
+                if is_sat:
+                    await websocket.send(serialize_puzzle_info({'type': 'ubahn', 'height': height, 'width': width, 'lines': lines_from_sat(height, width, is_line)}))
+                else:
+                    await websocket.send(serialize_puzzle_info({'type': 'ubahn', 'height': height, 'width': width, 'lines': impossible_lines(height, width)}))
 
             else:
                 print(f"Unknown puzzle type {puzzle_info['type']}", file=sys.stderr)

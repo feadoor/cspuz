@@ -27,6 +27,7 @@
         {name: 'Look-Air', val: 'lookair'},
         {name: 'Shakashaka', val: 'shakashaka'},
         {name: 'Turning Fences', val: 'turningfences'},
+        {name: 'U-Bahn', val: 'ubahn'},
         {name: 'Yajisan-Kazusan', val: 'yajikazu'},
     ];
 
@@ -68,13 +69,21 @@
         return pu.nx0 * pu.ny0 + pu.nx0 * (y + pu.space[0] + 1) + x + pu.space[2] + 1;
     };
 
-    const xy_pair_to_edge = function(y1, x1, y2, x2) {
+    const xy_vertex_pair_to_edge = function(y1, x1, y2, x2) {
         if (x2 === x1 + 1) {
             return 2 * pu.nx0 * pu.ny0 + pu.nx0 * (y1 + pu.space[0] + 1) + x1 + pu.space[2] + 2;
         } else if (y2 === y1 + 1) {
             return 3 * pu.nx0 * pu.ny0 + pu.nx0 * (y1 + pu.space[0] + 2) + x1 + pu.space[2] + 1;
         }
     };
+
+    const xy_cell_pair_to_edge = function(y1, x1, y2, x2) {
+        if (x2 === x1 + 1) {
+            return xy_vertex_pair_to_edge(y1, x2, y1 + 1, x2);
+        } else if (y2 === y1 + 1) {
+            return xy_vertex_pair_to_edge(y2, x1, y2, x1 + 1);
+        }
+    }
 
     const extractNumbers = function() {
         const [width, height, numbers] = [getWidth(), getHeight(), {}];
@@ -146,6 +155,40 @@
         }
         return outsideNumbers;
     };
+
+    const extractUbahnRowClues = function() {
+        const [width, height, rows] = [getWidth(), getHeight(), []];
+        for (let y = 0; y < height; y++) {
+            const numbers = [];
+            for (let x = -1; x >= -pu.space[2]; x--) {
+                const index = xy_to_index(y, x);
+                if (pu.pu_q.number[index] !== undefined) {
+                    numbers.push(pu.pu_q.number[index][0]);
+                } else {
+                    numbers.push('');
+                }
+            }
+            rows.push(numbers);
+        }
+        return rows;
+    }
+
+    const extractUbahnColClues = function() {
+        const [width, height, cols] = [getWidth(), getHeight(), []];
+        for (let x = 0; x < width; x++) {
+            const numbers = [];
+            for (let y = -1; y >= -pu.space[0]; y--) {
+                const index = xy_to_index(y, x);
+                if (pu.pu_q.number[index] !== undefined) {
+                    numbers.push(pu.pu_q.number[index][0]);
+                } else {
+                    numbers.push('');
+                }
+            }
+            cols.push(numbers);
+        }
+        return cols;
+    }
 
     const extractJapaneseSumsN = function() {
         const [width, height] = [getWidth(), getHeight()];
@@ -230,8 +273,23 @@
         }
         for (const c of cross) {
             const [[y1, x1], [y2, x2]] = c;
-            const index = xy_pair_to_edge(y1, x1, y2, x2);
+            const index = xy_vertex_pair_to_edge(y1, x1, y2, x2);
             pu.pu_a.lineE[index] = 98;
+        }
+        pu.redraw();
+    }
+
+    const displayLines = function(lines) {
+        const {line, cross} = lines;
+        for (const l of line) {
+            const [[y1, x1], [y2, x2]] = l;
+            const [index1, index2] = [xy_to_index(y1, x1), xy_to_index(y2, x2)];
+            pu.pu_a.line[`${index1},${index2}`] = 3;
+        }
+        for (const c of cross) {
+            const [[y1, x1], [y2, x2]] = c;
+            const index = xy_cell_pair_to_edge(y1, x1, y2, x2);
+            pu.pu_a.line[index] = 98;
         }
         pu.redraw();
     }
@@ -303,11 +361,19 @@
 
     const extractTurningFences = function() {
         return {height: getHeight(), width: getWidth(), numbers: extractNumbers()};
-    }
+    };
 
     const displayTurningFencesSolution = function(response) {
         displayEdges(response.edges);
-    }
+    };
+
+    const extractUbahn = function() {
+        return {height: getHeight(), width: getWidth(), rows: extractUbahnRowClues(), cols: extractUbahnColClues()};
+    };
+
+    const displayUbahnSolution = function(response) {
+        displayLines(response.lines);
+    };
 
     const createSocket = function() {
         const socket = new WebSocket('ws://localhost:8765');
@@ -346,6 +412,9 @@
                     break;
                 case 'turningfences':
                     displayTurningFencesSolution(response);
+                    break;
+                case 'ubahn':
+                    displayUbahnSolution(response);
                     break;
             }
             solveButton.text('Solve');
@@ -402,6 +471,9 @@
                     break;
                 case 'turningfences':
                     solverSocket.send(JSON.stringify({...extractTurningFences(), type}));
+                    break;
+                case 'ubahn':
+                    solverSocket.send(JSON.stringify({...extractUbahn(), type}));
                     break;
                 default:
                     solveButton.text('Solve');
