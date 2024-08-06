@@ -14,21 +14,25 @@ class Sudoku:
     is_determined: List[List[List[bool]]]
     solver: Solver
 
-    def __init__(self, n=3):
+    def __init__(self, n=3, regions=None):
         self.n = n
         self.solver = Solver()
         self.answer = self.solver.int_array((n * n, n * n), 1, n * n)
         self.is_determined = [[[False for _ in range(n * n)] for _ in range(n * n)]]
-        self.add_base_constraints()
+        self.add_base_constraints(regions)
 
-    def add_base_constraints(self):
+    def add_base_constraints(self, regions):
         self.solver.add_answer_key(self.answer)
         for idx in range(self.n * self.n):
             self.solver.ensure(alldifferent(self.answer[idx, :]))
             self.solver.ensure(alldifferent(self.answer[:, idx]))
-        for y in range(self.n):
-            for x in range(self.n):
-                self.solver.ensure(alldifferent(self.answer[y * self.n : (y + 1) * self.n, x * self.n : (x + 1) * self.n]))
+        if regions is None:
+            for y in range(self.n):
+                for x in range(self.n):
+                    self.solver.ensure(alldifferent(self.answer[y * self.n : (y + 1) * self.n, x * self.n : (x + 1) * self.n]))
+        else:
+            for region in regions:
+                self.solver.ensure(alldifferent(self.answer[y, x] for y, x in region))
 
     def add_clue_constraint(self, cell, value):
         self.solver.ensure(self.answer[cell] == value)

@@ -1,7 +1,6 @@
 from cspuz import Solver, graph
-from cspuz.array import BoolArray2D, IntArray2D
+from cspuz.array import BoolArray2D
 from cspuz.constraints import count_true, fold_and
-from cspuz.grid_frame import BoolGridFrame
 from cspuz.puzzle import util
 
 from copy import deepcopy
@@ -16,16 +15,15 @@ class Bramble:
     is_determined: List[List[List[bool]]]
     solver: Solver
 
-    def __init__(self, height, width):
+    def __init__(self, height, width, rooms):
         self.width = width
         self.height = height
         self.solver = Solver()
         self.shaded = self.solver.bool_array((height, width))
-        self.grid_frame = BoolGridFrame(self.solver, height, width)
         self.is_determined = [[[False for _ in range(width)] for _ in range(height)]]
-        self.add_base_constraints()
+        self.add_base_constraints(rooms)
 
-    def add_base_constraints(self):
+    def add_base_constraints(self, rooms):
         self.solver.add_answer_key(self.shaded)
 
         g = graph.Graph(self.height * self.width)
@@ -47,10 +45,10 @@ class Bramble:
                 self.solver.ensure((size[y, x] == 1).then(fold_and(x != 1 for x in diagonal_neighbours)))
                 self.solver.ensure((size[y, x] == 2).then(count_true(adjacent_neighbours) == 1))
 
-    def add_room(self, room):
-        for (y, x) in room:
-            adjacent_neighbours = [self.shaded[b, a] for (b, a) in ((y - 1, x), (y, x - 1), (y, x + 1), (y + 1, x)) if 0 <= b < self.height and 0 <= a < self.width and (b, a) not in room]
-            self.solver.ensure(self.shaded[y, x].then(fold_and(~x for x in adjacent_neighbours)))
+        for room in rooms:
+            for (y, x) in room:
+                adjacent_neighbours = [self.shaded[b, a] for (b, a) in ((y - 1, x), (y, x - 1), (y, x + 1), (y + 1, x)) if 0 <= b < self.height and 0 <= a < self.width and (b, a) not in room]
+                self.solver.ensure(self.shaded[y, x].then(fold_and(~x for x in adjacent_neighbours)))
 
     def add_clue(self, room, clue):
         self.solver.ensure(count_true(self.shaded[y, x] for (y, x) in room) == clue)
@@ -126,9 +124,8 @@ if __name__ == '__main__':
     clues_to_change = []
     new_clues = []
 
-    bramble = Bramble(height, width)
+    bramble = Bramble(height, width, rooms)
     for idx, room in enumerate(rooms):
-        bramble.add_room(room)
         if idx < len(clues) and idx not in clues_to_change: bramble.add_clue(room, clues[idx])
 
     def search():
