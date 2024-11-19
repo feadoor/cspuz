@@ -71,6 +71,12 @@ class Solver(object):
         del self.is_answer_key[var_index:]
         del self.constraints[cons_index:]
 
+    def all_answers(self):
+        while self.find_answer():
+            yield
+            difference_cond = [var != var.sol for (is_answer, var) in zip(self.is_answer_key, self.variables) if is_answer]
+            self.ensure(BoolExpr(Op.OR, difference_cond))
+
     def has_unique_answer(self):
         if not self.find_answer():
             return False
