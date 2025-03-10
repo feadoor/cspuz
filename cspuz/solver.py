@@ -1,4 +1,5 @@
 import functools
+from itertools import islice
 import warnings
 from typing import Any, List, Tuple, Union, cast, overload
 
@@ -76,6 +77,12 @@ class Solver(object):
             yield
             difference_cond = [var != var.sol for (is_answer, var) in zip(self.is_answer_key, self.variables) if is_answer]
             self.ensure(BoolExpr(Op.OR, difference_cond))
+
+    def count_answers(self, limit):
+        current_constraint_length = len(self.constraints)
+        count = sum(1 for _ in islice(self.all_answers(), 0, limit))
+        del self.constraints[current_constraint_length:]
+        return count
 
     def has_unique_answer(self):
         if not self.find_answer():

@@ -68,7 +68,7 @@ class Bramble:
         if self.solver.solve():
             for y in range(self.height):
                 for x in range(self.width):
-                    if self.shaded[y, x].sol is not None:
+                    if self.shaded[y, x].sol is not None and not self.is_determined[-1][y][x]:
                         self.solver.ensure(self.shaded[y, x] == self.shaded[y, x].sol)
                         self.is_determined[-1][y][x] = True
             return True
